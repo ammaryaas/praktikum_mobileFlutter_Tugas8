@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:tokokita/ui/login_page.dart';
+import 'package:tokokita/bloc/registrasi_bloc.dart';
+import 'package:tokokita/widget/success_dialog.dart';
+import 'package:tokokita/widget/warning_dialog.dart';
 
 class RegistrasiPage extends StatefulWidget {
   const RegistrasiPage({Key? key}) : super(key: key);
@@ -12,7 +13,6 @@ class RegistrasiPage extends StatefulWidget {
 class _RegistrasiPageState extends State<RegistrasiPage> {
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
-
   final _namaTextboxController = TextEditingController();
   final _emailTextboxController = TextEditingController();
   final _passwordTextboxController = TextEditingController();
@@ -20,7 +20,7 @@ class _RegistrasiPageState extends State<RegistrasiPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Registrasi Ammar"),
+        title: const Text("Registrasi"),
         foregroundColor: Colors.white,
         backgroundColor: Colors.blueAccent,
       ),
@@ -106,7 +106,6 @@ class _RegistrasiPageState extends State<RegistrasiPage> {
       decoration: const InputDecoration(labelText: "Konfirmasi Password"),
       keyboardType: TextInputType.text,
       obscureText: true,
-
       validator: (value) {
         //jika inputan tidak sama dengan password
         if (value != _passwordTextboxController.text) {
@@ -120,30 +119,50 @@ class _RegistrasiPageState extends State<RegistrasiPage> {
   //Membuat Tombol Registrasi
   Widget _buttonRegistrasi() {
     return ElevatedButton(
-      child: _isLoading ? const CircularProgressIndicator() : const Text("Registrasi"),
+      child: const Text("Registrasi"),
       onPressed: () {
         var validate = _formKey.currentState!.validate();
         if (validate) {
-          setState(() {
-            _isLoading = true;
-          });
-          _regist();
-          Navigator.push(
-            context, 
-            MaterialPageRoute(builder: (context) => const LoginPage())
-          );
+          if (!_isLoading) _submit();
         }
       },
     );
   }
 
-  void _regist() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    prefs.setString('email', _emailTextboxController.text);
-    prefs.setString('password', _passwordTextboxController.text);
+  void _submit() {
+    _formKey.currentState!.save();
+    setState(() {
+      _isLoading = true;
+    });
+    RegistrasiBloc.registrasi(
+      nama: _namaTextboxController.text,
+      email: _emailTextboxController.text,
+      password: _passwordTextboxController.text,
+    ).then(
+      (value) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (BuildContext context) => SuccessDialog(
+            description: "Registrasi berhasil, silahkan login",
+            okClick: () {
+              Navigator.pop(context);
+            },
+          ),
+        );
+      },
+      onError: (error) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (BuildContext context) => const WarningDialog(
+            description: "Registrasi gagal, silahkan coba lagi",
+          ),
+        );
+      },
+    );
+    setState(() {
+      _isLoading = false;
+    });
   }
-
-  // setState(() {
-  //   _isLoading = false;
-  // });
 }

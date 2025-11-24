@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tokokita/bloc/login_bloc.dart';
+import 'package:tokokita/helpers/user_info.dart';
 import 'package:tokokita/ui/produk_page.dart';
 import 'package:tokokita/ui/registrasi_page.dart';
+import 'package:tokokita/widget/warning_dialog.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({Key? key}) : super(key: key);
@@ -14,15 +16,14 @@ class _LoginPageState extends State<LoginPage> {
   bool _isLoading = false;
   final _emailTextboxController = TextEditingController();
   final _passwordTextboxController = TextEditingController();
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Login Ammar'),
+        title: const Text('Login'),
         foregroundColor: Colors.white,
         backgroundColor: Colors.blueAccent,
-      ),
+        ),
       body: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(8.0),
@@ -64,7 +65,6 @@ class _LoginPageState extends State<LoginPage> {
     return TextFormField(
       decoration: const InputDecoration(labelText: "Password"),
       keyboardType: TextInputType.text,
-
       obscureText: true,
       controller: _passwordTextboxController,
       validator: (value) {
@@ -78,38 +78,60 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   //Membuat Tombol Login
+  //Membuat Tombol Login
   Widget _buttonLogin() {
     return ElevatedButton(
-      child: _isLoading ? const CircularProgressIndicator() : const Text("Login"),
-      onPressed: () async {
-        SharedPreferences prefs = await SharedPreferences.getInstance();
-        String? email = prefs.getString('email');
-        String? password = prefs.getString('password');
+      child: const Text("Login"),
+      onPressed: () {
         var validate = _formKey.currentState!.validate();
-        if (
-            validate && 
-            _emailTextboxController.text == email &&
-            _passwordTextboxController.text == password
-          ) {
-          setState(() {
-            _isLoading = true;
-          });
-          Navigator.push(
-            context, 
-            MaterialPageRoute(builder: (context) => const ProdukPage())
-          );
-        } else {
-          showDialog(
-            context: context, 
-            builder: (context) {
-              return AlertDialog(
-                content: Text('email atau password salah'),
-              );
-            }
-          );
+        if (validate) {
+          if (!_isLoading) _submit();
         }
       },
     );
+  }
+
+  void _submit() {
+    _formKey.currentState!.save();
+    setState(() {
+      _isLoading = true;
+    });
+    LoginBloc.login(
+      email: _emailTextboxController.text,
+      password: _passwordTextboxController.text,
+    ).then(
+      (value) async {
+        if (value.code == 200) {
+          await UserInfo().setToken(value.token.toString());
+          await UserInfo().setUserID(int.parse(value.userID.toString()));
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const ProdukPage()),
+          );
+        } else {
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (BuildContext context) => const WarningDialog(
+              description: "Login gagal, silahkan coba lagi",
+            ),
+          );
+        }
+      },
+      onError: (error) {
+        print(error);
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (BuildContext context) => const WarningDialog(
+            description: "Login gagal, silahkan coba lagi",
+          ),
+        );
+      },
+    );
+    setState(() {
+      _isLoading = false;
+    });
   }
 
   // Membuat menu untuk membuka halaman registrasi
